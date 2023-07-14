@@ -1,6 +1,7 @@
 package feature_extraction
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -13,6 +14,9 @@ type Range struct {
 type CountVectorizer struct {
 	maxFeatures int
 	nGramRange  Range
+	maxDf       float32
+	minDf       int
+	corpusSize  int
 	vocabulary  map[string]int
 }
 
@@ -62,10 +66,21 @@ func (cv *CountVectorizer) LimitFeatures(vocab map[string]int) map[string]int {
 
 	newVocab := make(map[string]int, cv.maxFeatures)
 
+	maxDfOccurencies := int(cv.maxDf * float32(cv.corpusSize))
 	for k, v := range vocab {
-		if v >= minValue && len(newVocab) < cv.maxFeatures {
-			newVocab[k] = v
+		if v < minValue {
+			continue
 		}
+		if len(newVocab) >= cv.maxFeatures {
+			break
+		}
+		if v < cv.minDf {
+			continue
+		}
+		if v > maxDfOccurencies {
+			continue
+		}
+		newVocab[k] = v
 	}
 
 	return newVocab
@@ -110,16 +125,24 @@ func (cv *CountVectorizer) Analyze(text string) []string {
 }
 
 func (cv *CountVectorizer) AnalyzeWord(text string) []string {
-    ngrams := make([]string, 0)
-    words := strings.Split(text, " ")
-    for _, word := range words {
-        for i := 0; i <= len(word); i++ {
-            for j := i + 1; j <= len(word); j++ {
-                ngrams = append(ngrams, word[i:j])
-            }
-        }
-    }
-    return ngrams
+	n := cv.nGramRange.MaxN
+	words := strings.Split(text, " ")
+	ngrams := make([]string, 0, len(words)*((n-cv.nGramRange.MinN)+1))
+
+	var builder strings.Builder
+	for i := 0; i < len(words); i++ {
+		for j := cv.nGramRange.MinN; j <= cv.nGramRange.MaxN && i+j <= len(words); j++ {
+			builder.Reset()
+			for k := 0; k < j; k++ {
+				if k > 0 {
+					builder.WriteByte(' ')
+				}
+				builder.WriteString(words[i+k])
+			}
+			ngrams = append(ngrams, builder.String())
+		}
+	}
+	return ngrams
 }
 
 func (cv *CountVectorizer) CalcMat(docs []string) []float32 {
@@ -139,6 +162,7 @@ func (cv *CountVectorizer) CalcMat(docs []string) []float32 {
 
 func (cv *CountVectorizer) FitTransform(documents []string) []float32 {
 	vocabulary := cv.CountVocab(documents)
+	fmt.Println(vocabulary)
 	vocabulary = cv.LimitFeatures(vocabulary)
 	cv.vocabulary = cv.SortFeatures(vocabulary)
 
