@@ -2,6 +2,7 @@ package feature_extraction
 
 import (
 	"sort"
+	"strings"
 )
 
 type Range struct {
@@ -30,10 +31,10 @@ type CountVectorizer struct {
 // define vocabulary and sparse matrix based on analyzer and etc,here just the regular
 // matrix will be used
 // maxFeatures обрубает по большому количеству документов
-func (cv *CountVectorizer) countVocab(rawDocuments []string) {
+func (cv *CountVectorizer) CountVocab(rawDocs []string) map[string]int {
 	vocab := make(map[string]int)
-	for _, doc := range rawDocuments {
-		analyzed := cv.Analyze(doc)
+	for _, doc := range rawDocs {
+		analyzed := cv.AnalyzeWord(doc)
 		for _, tok := range analyzed {
 			if _, ok := vocab[tok]; !ok {
 				vocab[tok] = 1
@@ -42,36 +43,59 @@ func (cv *CountVectorizer) countVocab(rawDocuments []string) {
 			}
 		}
 	}
-	// retrun nil
+	return vocab
 }
 
 func (cv *CountVectorizer) LimitFeatures(vocab map[string]int) map[string]int {
-	freqs := make([]int, 0, len(vocab))
+	values := make([]int, len(vocab))
 	for _, v := range vocab {
-		freqs = append(freqs, v)
+		values = append(values, v)
 	}
-	sort.Sort(sort.Reverse(sort.IntSlice(freqs)))
-	minIdx := cv.maxFeatures
-	if minIdx >= len(freqs) {
-		minIdx = len(freqs) - 1
+
+	if len(vocab) <= cv.maxFeatures {
+		cv.maxFeatures = len(vocab)
 	}
-	min := freqs[minIdx]
-	vocabLim := make(map[string]int, cv.maxFeatures)
-	extra := make([]string, 0, len(vocab)-cv.maxFeatures)
+
+	sort.Sort(sort.Reverse(sort.IntSlice(values)))
+
+	minValue := values[cv.maxFeatures-1]
+
+	newVocab := make(map[string]int, cv.maxFeatures)
+
 	for k, v := range vocab {
-		if v > min && len(vocabLim) < cv.maxFeatures {
-			vocabLim[k] = v
-		} else if v == min {
-			extra = append(extra, k)
+		if v >= minValue && len(newVocab) < cv.maxFeatures {
+			newVocab[k] = v
 		}
 	}
-	for i := range extra {
-		if len(vocabLim) == cv.maxFeatures {
-			break
-		}
-		vocabLim[extra[i]] = min
+
+	return newVocab
+}
+
+func (cv *CountVectorizer) SortFeatures(vocab map[string]int) map[string]int {
+	keys := make([]string, 0, len(vocab))
+	for k := range vocab {
+		keys = append(keys, k)
 	}
-	return vocabLim
+
+	sort.Strings(keys)
+
+	newVocab := make(map[string]int, len(vocab))
+
+	for i, v := range keys {
+		newVocab[v] = i
+	}
+	return newVocab
+}
+
+func (cv *CountVectorizer) GetVector(analyzed []string) []float32 {
+	vector := make([]float32, len(cv.vocabulary))
+	for _, a := range analyzed {
+		if ind, ok := cv.vocabulary[a]; ok {
+			vector[ind] += 1
+		}
+	}
+	// return normalize(vector)
+	return vector
 }
 
 func (cv *CountVectorizer) Analyze(text string) []string {
@@ -83,4 +107,41 @@ func (cv *CountVectorizer) Analyze(text string) []string {
 		}
 	}
 	return ngrams
+}
+
+func (cv *CountVectorizer) AnalyzeWord(text string) []string {
+    ngrams := make([]string, 0)
+    words := strings.Split(text, " ")
+    for _, word := range words {
+        for i := 0; i <= len(word); i++ {
+            for j := i + 1; j <= len(word); j++ {
+                ngrams = append(ngrams, word[i:j])
+            }
+        }
+    }
+    return ngrams
+}
+
+func (cv *CountVectorizer) CalcMat(docs []string) []float32 {
+	dim := cv.maxFeatures
+	x := make([]float32, len(docs)*dim)
+	a := make([]string, dim)
+	vec := make([]float32, dim)
+	for i, d := range docs {
+		a = cv.AnalyzeWord(d)
+		vec = cv.GetVector(a)
+		for j, v := range vec {
+			x[dim*i+j] = v
+		}
+	}
+	return x
+}
+
+func (cv *CountVectorizer) FitTransform(documents []string) []float32 {
+	vocabulary := cv.CountVocab(documents)
+	vocabulary = cv.LimitFeatures(vocabulary)
+	cv.vocabulary = cv.SortFeatures(vocabulary)
+
+	x := cv.CalcMat(documents)
+	return x
 }
