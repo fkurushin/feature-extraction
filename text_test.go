@@ -14,7 +14,7 @@ func TestFitTransform(t *testing.T) {
 		"is this the first document"}
 
 	cv := &CountVectorizer{
-		maxFeatures: 200,
+		maxFeatures: 150000,
 		nGramRange:  Range{1, 1},
 		maxDf:       4,
 		minDf:       1,
@@ -36,6 +36,68 @@ func TestFitTransform(t *testing.T) {
 	}
 
 	real := make([][]float32, len(documents))
+
+	for i := 0; i < len(documents); i++ {
+		start := i * cv.maxFeatures
+		end := (i + 1) * cv.maxFeatures
+		real[i] = x[start:end]
+	}
+
+	if !reflect.DeepEqual(real, desire) {
+		t.Errorf("Matrices are not the same want \n%v\ngot\n%v", desire, real)
+	}
+
+	cv = &CountVectorizer{
+		maxFeatures: 150000,
+		nGramRange:  Range{2, 2},
+		maxDf:       4,
+		minDf:       1,
+		norm:        false,
+		analyzer:    "word",
+		vocabulary:  nil,
+	}
+
+	x, err = cv.FitTransform(documents)
+	if err != nil {
+		t.Errorf("error: %f", err)
+	}
+
+	desire = [][]float32{
+		{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0},
+		{0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0},
+		{1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0},
+		{0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1}}
+
+	for i := 0; i < len(documents); i++ {
+		start := i * cv.maxFeatures
+		end := (i + 1) * cv.maxFeatures
+		real[i] = x[start:end]
+	}
+
+	if !reflect.DeepEqual(real, desire) {
+		t.Errorf("Matrices are not the same want \n%v\ngot\n%v", desire, real)
+	}
+
+	cv = &CountVectorizer{
+		maxFeatures: 150000,
+		nGramRange:  Range{2, 2},
+		maxDf:       4,
+		minDf:       1,
+		norm:        false,
+		analyzer:    "word",
+		vocabulary:  nil,
+	}
+
+	x, err = cv.FitTransform(documents)
+	if err != nil {
+		t.Errorf("error: %f", err)
+	}
+
+	desire = [][]float32{
+		{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0},
+		{0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0},
+		{1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0},
+		{0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1}}
 
 	for i := 0; i < len(documents); i++ {
 		start := i * cv.maxFeatures
@@ -69,13 +131,13 @@ func BenchmarkFitTransform(b *testing.B) {
 		nGramRange:  Range{1, 1},
 		maxDf:       4,
 		minDf:       1,
-		norm:        false,
+		norm:        true,
 		analyzer:    "char",
 		vocabulary:  nil,
 	}
 
-	b.ResetTimer() // Reset the timer before starting the benchmark
-	b.N = 100000
+	b.ResetTimer()
+	// b.N = 10000000
 	for i := 0; i < b.N; i++ {
 		_, err := cv.FitTransform(documents)
 		if err != nil {

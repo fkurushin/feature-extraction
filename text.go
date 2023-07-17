@@ -103,7 +103,8 @@ func (cv *CountVectorizer) GetVector(analyzed []string) []float32 {
 }
 
 func (cv *CountVectorizer) Analyze(text string) ([]string, error) {
-	if cv.analyzer == "char" {
+	switch cv.analyzer {
+	case "char":
 		ngrams := make([]string, 0)
 		runeQuery := []rune(text)
 		for i := 0; i < len(runeQuery); i++ {
@@ -112,11 +113,12 @@ func (cv *CountVectorizer) Analyze(text string) ([]string, error) {
 			}
 		}
 		return ngrams, nil
-	} else if cv.analyzer == "word" {
+
+	case "word":
 		n := cv.nGramRange.MaxN
 		words := strings.Split(text, " ")
 		ngrams := make([]string, 0, len(words)*((n-cv.nGramRange.MinN)+1))
-	
+
 		var builder strings.Builder
 		for i := 0; i < len(words); i++ {
 			for j := cv.nGramRange.MinN; j <= cv.nGramRange.MaxN && i+j <= len(words); j++ {
@@ -131,10 +133,10 @@ func (cv *CountVectorizer) Analyze(text string) ([]string, error) {
 			}
 		}
 		return ngrams, nil
-	} else {
+
+	default:
 		return nil, fmt.Errorf("unexpected analyzer name")
 	}
-	
 }
 
 func (cv *CountVectorizer) CalcMat(docs []string) ([]float32, error) {
