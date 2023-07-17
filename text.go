@@ -1,6 +1,7 @@
 package feature_extraction
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -16,28 +17,17 @@ type CountVectorizer struct {
 	maxDf       int
 	minDf       int
 	norm        bool
+	analyzer    string
 	vocabulary  map[string]int
 }
 
-// rawDocuments := {
-//      'This is the first document.',
-//      'This document is the second document.',
-//      'And this is the third one.',
-//      'Is this the first document?',
-//  }
-
-// [[0 1 1 1 0 0 1 0 1]
-//  [0 2 0 1 0 1 1 0 1]
-//  [1 0 0 1 1 0 1 1 1]
-//  [0 1 1 1 0 0 1 0 1]]
-
-// define vocabulary and sparse matrix based on analyzer and etc,here just the regular
-// matrix will be used
-// maxFeatures обрубает по большому количеству документов
-func (cv *CountVectorizer) CountVocab(rawDocs []string) map[string]int {
+func (cv *CountVectorizer) CountVocab(rawDocs []string) (map[string]int, error) {
 	vocab := make(map[string]int)
 	for _, doc := range rawDocs {
-		analyzed := cv.AnalyzeWord(doc)
+		analyzed, err := cv.Analyze(doc)
+		if err != nil {
+			return nil, err
+		}
 		for _, tok := range analyzed {
 			if _, ok := vocab[tok]; !ok {
 				vocab[tok] = 1
@@ -46,7 +36,7 @@ func (cv *CountVectorizer) CountVocab(rawDocs []string) map[string]int {
 			}
 		}
 	}
-	return vocab
+	return vocab, nil
 }
 
 func (cv *CountVectorizer) LimitFeatures(vocab map[string]int) map[string]int {
@@ -112,57 +102,70 @@ func (cv *CountVectorizer) GetVector(analyzed []string) []float32 {
 	}
 }
 
-func (cv *CountVectorizer) Analyze(text string) []string {
-	ngrams := make([]string, 0)
-	runeQuery := []rune(text)
-	for i := 0; i < len(runeQuery); i++ {
-		for j := cv.nGramRange.MinN; j <= cv.nGramRange.MaxN && i+j <= len(runeQuery); j++ {
-			ngrams = append(ngrams, string(runeQuery[i:i+j]))
-		}
-	}
-	return ngrams
-}
-
-func (cv *CountVectorizer) AnalyzeWord(text string) []string {
-	n := cv.nGramRange.MaxN
-	words := strings.Split(text, " ")
-	ngrams := make([]string, 0, len(words)*((n-cv.nGramRange.MinN)+1))
-
-	var builder strings.Builder
-	for i := 0; i < len(words); i++ {
-		for j := cv.nGramRange.MinN; j <= cv.nGramRange.MaxN && i+j <= len(words); j++ {
-			builder.Reset()
-			for k := 0; k < j; k++ {
-				if k > 0 {
-					builder.WriteByte(' ')
-				}
-				builder.WriteString(words[i+k])
+func (cv *CountVectorizer) Analyze(text string) ([]string, error) {
+	if cv.analyzer == "char" {
+		ngrams := make([]string, 0)
+		runeQuery := []rune(text)
+		for i := 0; i < len(runeQuery); i++ {
+			for j := cv.nGramRange.MinN; j <= cv.nGramRange.MaxN && i+j <= len(runeQuery); j++ {
+				ngrams = append(ngrams, string(runeQuery[i:i+j]))
 			}
-			ngrams = append(ngrams, builder.String())
 		}
+		return ngrams, nil
+	} else if cv.analyzer == "word" {
+		n := cv.nGramRange.MaxN
+		words := strings.Split(text, " ")
+		ngrams := make([]string, 0, len(words)*((n-cv.nGramRange.MinN)+1))
+	
+		var builder strings.Builder
+		for i := 0; i < len(words); i++ {
+			for j := cv.nGramRange.MinN; j <= cv.nGramRange.MaxN && i+j <= len(words); j++ {
+				builder.Reset()
+				for k := 0; k < j; k++ {
+					if k > 0 {
+						builder.WriteByte(' ')
+					}
+					builder.WriteString(words[i+k])
+				}
+				ngrams = append(ngrams, builder.String())
+			}
+		}
+		return ngrams, nil
+	} else {
+		return nil, fmt.Errorf("unexpected analyzer name")
 	}
-	return ngrams
+	
 }
 
-func (cv *CountVectorizer) CalcMat(docs []string) []float32 {
+func (cv *CountVectorizer) CalcMat(docs []string) ([]float32, error) {
+	var err error
 	dim := cv.maxFeatures
 	x := make([]float32, len(docs)*dim)
 	a := make([]string, dim)
 	vec := make([]float32, dim)
 	for i, d := range docs {
-		a = cv.AnalyzeWord(d)
+		a, err = cv.Analyze(d)
+		if err != nil {
+			return nil, err
+		}
 		vec = cv.GetVector(a)
 		for j, v := range vec {
 			x[dim*i+j] = v
 		}
 	}
-	return x
+	return x, nil
 }
 
-func (cv *CountVectorizer) FitTransform(documents []string) []float32 {
-	vocabulary := cv.CountVocab(documents)
+func (cv *CountVectorizer) FitTransform(documents []string) ([]float32, error) {
+	vocabulary, err := cv.CountVocab(documents)
+	if err != nil {
+		return nil, err
+	}
 	vocabulary = cv.LimitFeatures(vocabulary)
 	cv.vocabulary = cv.SortFeatures(vocabulary)
-	x := cv.CalcMat(documents)
-	return x
+	x, err := cv.CalcMat(documents)
+	if err != nil {
+		return nil, err
+	}
+	return x, nil
 }
