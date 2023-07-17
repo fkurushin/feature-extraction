@@ -1,7 +1,6 @@
 package feature_extraction
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 )
@@ -14,9 +13,9 @@ type Range struct {
 type CountVectorizer struct {
 	maxFeatures int
 	nGramRange  Range
-	maxDf       float32
+	maxDf       int
 	minDf       int
-	corpusSize  int
+	norm        bool
 	vocabulary  map[string]int
 }
 
@@ -66,18 +65,14 @@ func (cv *CountVectorizer) LimitFeatures(vocab map[string]int) map[string]int {
 
 	newVocab := make(map[string]int, cv.maxFeatures)
 
-	maxDfOccurencies := int(cv.maxDf * float32(cv.corpusSize))
 	for k, v := range vocab {
 		if v < minValue {
 			continue
 		}
-		if len(newVocab) >= cv.maxFeatures {
-			break
-		}
 		if v < cv.minDf {
 			continue
 		}
-		if v > maxDfOccurencies {
+		if v > cv.maxDf {
 			continue
 		}
 		newVocab[k] = v
@@ -86,6 +81,7 @@ func (cv *CountVectorizer) LimitFeatures(vocab map[string]int) map[string]int {
 	return newVocab
 }
 
+// useless function imho
 func (cv *CountVectorizer) SortFeatures(vocab map[string]int) map[string]int {
 	keys := make([]string, 0, len(vocab))
 	for k := range vocab {
@@ -109,8 +105,11 @@ func (cv *CountVectorizer) GetVector(analyzed []string) []float32 {
 			vector[ind] += 1
 		}
 	}
-	// return normalize(vector)
-	return vector
+	if cv.norm {
+		return normalize(vector)
+	} else {
+		return vector
+	}
 }
 
 func (cv *CountVectorizer) Analyze(text string) []string {
@@ -162,10 +161,8 @@ func (cv *CountVectorizer) CalcMat(docs []string) []float32 {
 
 func (cv *CountVectorizer) FitTransform(documents []string) []float32 {
 	vocabulary := cv.CountVocab(documents)
-	fmt.Println(vocabulary)
 	vocabulary = cv.LimitFeatures(vocabulary)
 	cv.vocabulary = cv.SortFeatures(vocabulary)
-
 	x := cv.CalcMat(documents)
 	return x
 }
