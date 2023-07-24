@@ -59,6 +59,9 @@ func (cv *CountVectorizer) LimitFeatures(vocab map[string]int) map[string]int {
 		if v < minValue {
 			continue
 		}
+		// это сколько раз встречается в документе
+		// в скольких документах встречается
+		// а не сколько вообще встречается
 		if v < cv.minDf {
 			continue
 		}
@@ -150,7 +153,9 @@ func (cv *CountVectorizer) CalcMat(docs []string) ([]float32, error) {
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println(a)
 		vec = cv.GetVector(a)
+		fmt.Println(vec)
 		for j, v := range vec {
 			x[dim*i+j] = v
 		}
@@ -163,8 +168,11 @@ func (cv *CountVectorizer) FitTransform(documents []string) ([]float32, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(vocabulary)
 	vocabulary = cv.LimitFeatures(vocabulary)
+	fmt.Println(vocabulary)
 	cv.vocabulary = cv.SortFeatures(vocabulary)
+	fmt.Println(cv.vocabulary)
 	x, err := cv.CalcMat(documents)
 	if err != nil {
 		return nil, err

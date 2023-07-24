@@ -7,6 +7,7 @@ import (
 
 func TestFitTransform(t *testing.T) {
 
+	// word vectorizer
 	documents := []string{
 		"this is the first document",
 		"this document is the second document",
@@ -116,6 +117,40 @@ func TestFitTransform(t *testing.T) {
 	// 		fmt.Print("\n")
 	// 	}
 	// }
+
+	// char vectorizer
+	cv3 := &CountVectorizer{
+		maxFeatures: 10,
+		nGramRange:  Range{1, 2},
+		maxDf:       4,
+		minDf:       1,
+		norm:        false,
+		analyzer:    "char",
+		vocabulary:  nil,
+	}
+
+	x3, err := cv3.FitTransform(documents)
+	if err != nil {
+		t.Errorf("error: %f", err)
+	}
+	t.Errorf("%v", x3)
+	desire3 := [][]float32{
+		{4, 1, 2, 2, 3, 2, 3, 2, 4, 2},
+		{5, 1, 4, 2, 2, 2, 3, 2, 4, 2},
+		{5, 3, 2, 3, 3, 2, 2, 2, 3, 3},
+		{4, 2, 2, 2, 3, 2, 3, 2, 4, 2},
+	}
+
+	for i := 0; i < len(documents); i++ {
+		start := i * cv3.maxFeatures
+		end := (i + 1) * cv3.maxFeatures
+		real[i] = x3[start:end]
+	}
+
+	if !reflect.DeepEqual(real, desire3) {
+		t.Errorf("Matrices are not the same want \n%v\ngot\n%v", desire3, real)
+	}
+
 }
 
 func BenchmarkFitTransform(b *testing.B) {

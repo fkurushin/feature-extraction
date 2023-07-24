@@ -19,3 +19,6 @@
 
 # Go workspace file
 go.work
+
+# Python file for validation
+main.py
