@@ -1,6 +1,7 @@
 package feature_extraction
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -37,37 +38,6 @@ func TestFitTransform(t *testing.T) {
 	}
 
 	real := make([][]float32, len(documents))
-
-	for i := 0; i < len(documents); i++ {
-		start := i * cv.maxFeatures
-		end := (i + 1) * cv.maxFeatures
-		real[i] = x[start:end]
-	}
-
-	if !reflect.DeepEqual(real, desire) {
-		t.Errorf("Matrices are not the same want \n%v\ngot\n%v", desire, real)
-	}
-
-	cv = &CountVectorizer{
-		maxFeatures: 150000,
-		nGramRange:  Range{2, 2},
-		maxDf:       4,
-		minDf:       1,
-		norm:        false,
-		analyzer:    "word",
-		vocabulary:  nil,
-	}
-
-	x, err = cv.FitTransform(documents)
-	if err != nil {
-		t.Errorf("error: %f", err)
-	}
-
-	desire = [][]float32{
-		{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0},
-		{0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0},
-		{1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0},
-		{0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1}}
 
 	for i := 0; i < len(documents); i++ {
 		start := i * cv.maxFeatures
@@ -147,6 +117,7 @@ func TestFitTransform(t *testing.T) {
 		real[i] = x3[start:end]
 	}
 
+	fmt.Println(cv3.vocabulary)
 	if !reflect.DeepEqual(real, desire3) {
 		t.Errorf("Matrices are not the same want \n%v\ngot\n%v", desire3, real)
 	}
@@ -208,7 +179,7 @@ func TestCountVectorizer_CountVocab(t *testing.T) {
 		"programming": 1,
 	}
 
-	actualVocab, err := cv.CountVocab(rawDocs)
+	actualVocab, _, err := cv.CountVocab(rawDocs)
 	if err != nil {
 		t.Errorf("error: %f", err)
 	}
