@@ -23,7 +23,7 @@ type CountVectorizer struct {
 
 func (cv *CountVectorizer) CountVocab(rawDocs []string) (map[string]int, map[string]int, error) {
 	vocab := make(map[string]int)
-	docCounts := make(map[string]int)
+	docFreq := make(map[string]int)
 
 	for _, doc := range rawDocs {
 		analyzed, err := cv.Analyze(doc)
@@ -31,56 +31,39 @@ func (cv *CountVectorizer) CountVocab(rawDocs []string) (map[string]int, map[str
 			return nil, nil, err
 		}
 
-		countedTokens := make(map[string]bool)
-		for _, tok := range analyzed {
-			if _, ok := vocab[tok]; !ok {
-				vocab[tok] = 1
-			} else {
-				vocab[tok] += 1
-			}
+		// Keep track of tokens to avoid double counting in a document
+		seenTokens := make(map[string]bool)
 
-			if _, counted := countedTokens[tok]; !counted {
-				docCounts[tok] += 1
-				countedTokens[tok] = true
+		for _, tok := range analyzed {
+			// Update vocabulary count
+			vocab[tok]++
+
+			// Update document frequency if token hasn't been seen in current document
+			if !seenTokens[tok] {
+				docFreq[tok]++
+				seenTokens[tok] = true
 			}
 		}
 	}
 
-	return vocab, docCounts, nil
+	return vocab, docFreq, nil
 }
-
 func (cv *CountVectorizer) LimitFeatures(vocab map[string]int, docFreq map[string]int) map[string]int {
 
 	if len(vocab) <= cv.maxFeatures {
 		cv.maxFeatures = len(vocab)
 	}
 
-	reducedDfsVoc := make(map[string]int, cv.maxFeatures)
-
 	for k, v := range docFreq {
 		if v < cv.minDf || v > cv.maxDf {
-			continue
+			delete(vocab, k)
 		}
-		reducedDfsVoc[k] = vocab[k]
 	}
-	if len(reducedDfsVoc) <= cv.maxFeatures {
-		return reducedDfsVoc
-	} else {
-		values := make([]int, len(reducedDfsVoc))
-		for _, v := range vocab {
-			values = append(values, v)
-		}
-		sort.Sort(sort.Reverse(sort.IntSlice(values)))
-		minValue := values[cv.maxFeatures]
-		newVocab := make(map[string]int, cv.maxFeatures)
 
-		for k, v := range reducedDfsVoc {
-			//
-			if v >= minValue && len(newVocab) < cv.maxFeatures {
-				newVocab[k] = v
-			}
-		}
-		return newVocab
+	if len(vocab) <= cv.maxFeatures {
+		return vocab
+	} else {
+		return keepFirstNelements(vocab, cv.maxFeatures)
 	}
 }
 
@@ -118,7 +101,6 @@ func (cv *CountVectorizer) GetVector(analyzed []string) []float32 {
 func (cv *CountVectorizer) Analyze(text string) ([]string, error) {
 	switch cv.analyzer {
 	case "char":
-		// TODO: delete spaces
 		ngrams := make([]string, 0)
 		runeQuery := []rune(text)
 		for i := 0; i < len(runeQuery); i++ {
@@ -181,12 +163,12 @@ func (cv *CountVectorizer) FitTransform(documents []string) ([]float32, error) {
 	if err != nil {
 		return nil, err
 	}
+	// vocabulary = cv.SortFeatures(vocabulary)
 	vocabulary = cv.LimitFeatures(vocabulary, dfs)
 	cv.vocabulary = cv.SortFeatures(vocabulary)
 	x, err := cv.CalcMat(documents)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(cv.vocabulary)
 	return x, nil
 }

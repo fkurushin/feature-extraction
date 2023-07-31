@@ -6,6 +6,53 @@ import (
 	"testing"
 )
 
+func TestKeepFirstNelements(t *testing.T) {
+	tests := []struct {
+		inputMap map[string]int
+		inputN   int
+		expected map[string]int
+	}{
+		{
+			inputMap: map[string]int{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5},
+			inputN:   3,
+			expected: map[string]int{"d": 4, "e": 5, "c": 3},
+		},
+		{
+			inputMap: map[string]int{"a": 10, "b": 20, "c": 30, "d": 40, "e": 50},
+			inputN:   5,
+			expected: map[string]int{"e": 50, "d": 40, "c": 30, "b": 20, "a": 10},
+		},
+	}
+	for _, test := range tests {
+		result := keepFirstNelements(test.inputMap, test.inputN)
+
+		if !reflect.DeepEqual(result, test.expected) {
+			t.Errorf("Test failed for inputMap: %v, expected: %v:, got: %v", test.inputMap, test.expected, result)
+		}
+	}
+	tests1 := []struct {
+		inputMap  map[string]int
+		inputN    int
+		expected  map[string]int
+		expected1 map[string]int
+	}{
+		{
+			inputMap:  map[string]int{"a": 10, "b": 20, "c": 30, "d": 40, "e": 50, "f": 10},
+			inputN:    5,
+			expected:  map[string]int{"e": 50, "d": 40, "c": 30, "b": 20, "a": 10},
+			expected1: map[string]int{"e": 50, "d": 40, "c": 30, "b": 20, "f": 10},
+		},
+	}
+	for _, test := range tests1 {
+		result := keepFirstNelements(test.inputMap, test.inputN)
+
+		if !(reflect.DeepEqual(result, test.expected) || reflect.DeepEqual(result, test.expected1)) {
+			t.Errorf("Test failed for inputMap: %v, expected: %v:, got: %v", test.inputMap, test.expected, result)
+		}
+	}
+
+}
+
 func TestFitTransform(t *testing.T) {
 
 	// word vectorizer
@@ -103,7 +150,7 @@ func TestFitTransform(t *testing.T) {
 	if err != nil {
 		t.Errorf("error: %f", err)
 	}
-	t.Errorf("%v", x3)
+
 	desire3 := [][]float32{
 		{4, 1, 2, 2, 3, 2, 3, 2, 4, 2},
 		{5, 1, 4, 2, 2, 2, 3, 2, 4, 2},
@@ -122,6 +169,32 @@ func TestFitTransform(t *testing.T) {
 		t.Errorf("Matrices are not the same want \n%v\ngot\n%v", desire3, real)
 	}
 
+}
+
+func BenchmarkKeepFirstNElements(b *testing.B) {
+	inputMap := map[string]int{"a": 10, "b": 20, "c": 30, "d": 40, "e": 50, "f": 10}
+	n := 5
+	expected := map[string]int{"e": 50, "d": 40, "c": 30, "b": 20, "f": 10}
+
+	for i := 0; i < b.N; i++ {
+		result := keepFirstNelements(inputMap, n)
+		if len(result) != len(expected) {
+			b.Errorf("Result length is not equal to expected length")
+		}
+	}
+}
+
+func BenchmarkKeepFirstNElementsV0(b *testing.B) {
+	inputMap := map[string]int{"a": 10, "b": 20, "c": 30, "d": 40, "e": 50, "f": 10}
+	n := 5
+	expected := map[string]int{"e": 50, "d": 40, "c": 30, "b": 20, "f": 10}
+
+	for i := 0; i < b.N; i++ {
+		result := keepFirstNelementsV0(inputMap, n)
+		if len(result) != len(expected) {
+			b.Errorf("Result length is not equal to expected length")
+		}
+	}
 }
 
 func BenchmarkFitTransform(b *testing.B) {
@@ -143,7 +216,6 @@ func BenchmarkFitTransform(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	// b.N = 10000000
 	for i := 0; i < b.N; i++ {
 		_, err := cv.FitTransform(documents)
 		if err != nil {
