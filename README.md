@@ -26,3 +26,4 @@ go package for sklearn feature extraction module
 	}
 
 ```
+options: analyzer: "char" or "word"
