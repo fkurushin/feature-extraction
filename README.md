@@ -27,3 +27,12 @@ go package for sklearn feature extraction module
 
 ```
 options: analyzer: "char" or "word"
+
+```
+goos: darwin
+goarch: arm64
+pkg: github.com/fkurushin/feature-extraction
+BenchmarkFitTransform-8   	   61903	     19841 ns/op	   19235 B/op	     304 allocs/op
+PASS
+ok  	github.com/fkurushin/feature-extraction	1.526s
+```
